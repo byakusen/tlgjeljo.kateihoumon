@@ -1,0 +1,2028 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>家庭訪問・個人懇談 日程調整アプリ</title>
+  <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+  <style>
+    /* -------------------------------------
+       CSS: Base & Typography
+    -------------------------------------- */
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'M PLUS Rounded 1c', sans-serif;
+      /* 爽やかなグラデーション背景 */
+      background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
+      color: #333;
+    }
+
+    /* -------------------------------------
+       CSS: App Container & Glassmorphism
+    -------------------------------------- */
+    .app-container {
+      width: 95%;
+      max-width: 1400px;
+      height: 90vh;
+      background: rgba(255, 255, 255, 0.45);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-radius: 20px;
+      box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.6);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* -------------------------------------
+       CSS: Header & Tabs
+    -------------------------------------- */
+    header {
+      padding: 20px 30px;
+      background: rgba(255, 255, 255, 0.5);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.8);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.5rem;
+      color: #2c3e50;
+    }
+    .tabs {
+      display: flex;
+      gap: 10px;
+    }
+    .tab-btn {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 30px;
+      background: rgba(255, 255, 255, 0.6);
+      font-size: 1rem;
+      font-family: inherit;
+      font-weight: bold;
+      color: #666;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+    .tab-btn.active {
+      background: #4caf50;
+      color: white;
+      box-shadow: 0 4px 10px rgba(76, 175, 80, 0.3);
+    }
+    .tab-btn:hover:not(.active) {
+      background: rgba(255, 255, 255, 0.9);
+    }
+
+    /* -------------------------------------
+       CSS: Main Area & Content
+    -------------------------------------- */
+    main {
+      flex: 1;
+      overflow: hidden; /* コンテンツ内でスクロールさせる */
+      position: relative;
+    }
+    .tab-content {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      padding: 20px;
+      display: none;
+      flex-direction: column;
+      opacity: 0;
+      transition: opacity 0.4s ease-in-out;
+    }
+    .tab-content.active {
+      display: flex;
+      opacity: 1;
+      z-index: 10;
+    }
+
+    /* 設定タブのレイアウト（横スクロール） */
+    .settings-wrapper {
+      flex: 1;
+      display: flex;
+      gap: 20px;
+      overflow-x: auto;
+      padding-bottom: 10px;
+    }
+    /* スクロールバーの装飾 */
+    .settings-wrapper::-webkit-scrollbar, .schedule-wrapper::-webkit-scrollbar {
+      height: 10px; width: 10px;
+    }
+    .settings-wrapper::-webkit-scrollbar-thumb, .schedule-wrapper::-webkit-scrollbar-thumb {
+      background: rgba(0,0,0,0.2);
+      border-radius: 5px;
+    }
+
+    /* クラス別テーブルコンテナ */
+    .class-box {
+      min-width: 500px; /* 兄弟情報が分かれた分、少し広げる */
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 12px;
+      padding: 15px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+      border: 1px solid rgba(255,255,255,0.8);
+      height: fit-content;
+    }
+    .class-box h3 {
+      margin-top: 0;
+      text-align: center;
+      color: #34495e;
+      border-bottom: 2px solid rgba(0,0,0,0.1);
+      padding-bottom: 10px;
+    }
+
+    /* スケジュールタブのレイアウト */
+    .schedule-wrapper {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: auto; /* 横スクロールを許可 */
+      background: rgba(255, 255, 255, 0.6);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid rgba(255,255,255,0.8);
+    }
+
+    /* -------------------------------------
+       CSS: Tables & Inputs
+    -------------------------------------- */
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin-bottom: 10px;
+    }
+    th, td {
+      padding: 8px 4px;
+      text-align: left;
+      border-bottom: 1px solid rgba(0,0,0,0.05);
+    }
+    th {
+      font-size: 0.9rem;
+      color: #555;
+    }
+    td.num-col {
+      width: 30px;
+      text-align: center;
+      font-weight: bold;
+      color: #7f8c8d;
+    }
+    input[type="text"], input[type="number"], select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 8px;
+      border: 1px solid rgba(0,0,0,0.15);
+      border-radius: 6px;
+      font-family: inherit;
+      background: rgba(255,255,255,0.8);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    input[type="text"]:focus, input[type="number"]:focus, select:focus {
+      outline: none;
+      border-color: #4caf50;
+      box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2);
+    }
+    /* エラー・ダブルブッキング時のハイライト */
+    input.error-input {
+      border: 2px solid #e74c3c !important;
+      background: rgba(231, 76, 60, 0.1) !important;
+    }
+    .double-booked {
+      background-color: #ffcccc !important;
+      border: 2px solid #e74c3c !important;
+    }
+
+    .readonly-text {
+      display: flex;
+      align-items: center;
+      padding: 8px;
+      background: rgba(0,0,0,0.03);
+      border-radius: 6px;
+      color: #555;
+      min-height: 44px; /* 2人分の高さに合わせて広げる */
+      white-space: pre-wrap; /* 縦に改行して表示できるようにする */
+      line-height: 1.4;
+      overflow: hidden;
+    }
+
+    /* -------------------------------------
+       CSS: Buttons & Footer
+    -------------------------------------- */
+    .btn-container {
+      display: flex;
+      justify-content: flex-end;
+      padding-top: 15px;
+    }
+    .save-btn {
+      padding: 12px 30px;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1.1rem;
+      font-family: inherit;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 4px 10px rgba(52, 152, 219, 0.3);
+    }
+    .save-btn:hover {
+      background: #2980b9;
+      transform: translateY(-2px);
+      box-shadow: 0 6px 15px rgba(52, 152, 219, 0.4);
+    }
+
+    footer {
+      padding: 15px 30px;
+      background: rgba(255, 255, 255, 0.3);
+      border-top: 1px solid rgba(255, 255, 255, 0.5);
+      text-align: right;
+    }
+    .danger-btn {
+      padding: 8px 16px;
+      background: transparent;
+      color: #e74c3c;
+      border: 1px solid #e74c3c;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: 0.2s;
+    }
+    .danger-btn:hover {
+      background: #e74c3c;
+      color: white;
+    }
+    
+    /* レスポンシブ対応 */
+    @media (max-width: 768px) {
+      .app-container { height: 95vh; width: 100%; border-radius: 0; }
+      header { flex-direction: column; gap: 10px; }
+      .class-box { min-width: 280px; }
+    }
+
+    /* -------------------------------------
+       CSS: Print
+    -------------------------------------- */
+    @media print {
+      @page { size: A4 portrait; margin: 10mm; }
+      body { background: none !important; color: black !important; }
+      .app-container { width: 100% !important; max-width: none !important; height: auto !important; background: none !important; box-shadow: none !important; border: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important; display: block !important; padding: 0 !important; }
+      header, .tabs, #tab-config, #tab-settings, footer { display: none !important; }
+      main { overflow: visible !important; display: block !important; }
+      .tab-content { position: static !important; opacity: 1 !important; display: none !important; padding: 0 !important; }
+      #tab-schedule.active { display: block !important; }
+      #tab-schedule > div:first-child { display: none !important; }
+      #print-schedule-title { display: block !important; margin: 0 0 15px 0 !important; text-align: center; font-size: 16pt; font-weight: bold; color: black; }
+      .schedule-wrapper { overflow: visible !important; background: none !important; border: none !important; padding: 0 !important; }
+      .schedule-wrapper table { width: 100% !important; min-width: 100% !important; table-layout: auto !important; }
+      .schedule-wrapper th, .schedule-wrapper td { position: static !important; border: 1px solid #000 !important; padding: 4px !important; width: auto !important; min-width: auto !important; max-width: none !important; font-size: 8pt !important; color: black !important; background: none !important; white-space: normal !important; }
+      .schedule-wrapper input[type="text"] { border: none !important; background: none !important; padding: 0 !important; font-size: 8pt !important; color: black !important; box-shadow: none !important; }
+      .schedule-wrapper input::placeholder { color: transparent !important; }
+      .schedule-wrapper .readonly-text { background: none !important; color: black !important; font-size: 8pt !important; padding: 0 !important; font-weight: normal !important; min-height: auto !important; }
+      .schedule-wrapper th { font-weight: bold !important; text-align: center !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- クラウド同期中のローディング画面 -->
+  <div id="global-loading" style="position: fixed; inset: 0; background: rgba(255,255,255,0.9); z-index: 9999; display: flex; flex-direction: column; justify-content: center; align-items: center; backdrop-filter: blur(5px);">
+    <div style="border: 4px solid #f3f3f3; border-top: 4px solid #4caf50; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite;"></div>
+    <p style="margin-top: 15px; color: #2c3e50; font-weight: bold; font-family: 'M PLUS Rounded 1c', sans-serif;">クラウドと同期中...</p>
+    <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+  </div>
+
+  <div class="app-container">
+    <header>
+      <div style="display: flex; align-items: center;">
+        <h1>🏠 家庭訪問・個人懇談 日程調整</h1>
+        <!-- 日程表用のクラス選択プルダウン（タイトルの横） -->
+        <select id="schedule-class-select" style="font-size: 1rem; padding: 4px 8px; margin-left: 20px; display: none; width: auto; font-weight: bold; border: 2px solid rgba(0,0,0,0.2);" onchange="renderSchedule()">
+          <!-- JSで動的生成 -->
+        </select>
+      </div>
+      <div class="tabs">
+        <button class="tab-btn" data-target="tab-config">設定</button>
+        <button class="tab-btn active" data-target="tab-settings">名簿</button>
+        <button class="tab-btn" data-target="tab-schedule">日程表</button>
+      </div>
+    </header>
+
+    <main>
+      <!-- タブ0: 設定 -->
+      <section id="tab-config" class="tab-content">
+        <div style="padding: 20px; max-width: 500px; margin: 0 auto; background: rgba(255,255,255,0.6); border-radius: 12px; border: 1px solid rgba(255,255,255,0.8); overflow-y: auto; max-height: 100%; box-sizing: border-box; width: 100%;">
+          <h2 style="color: #2c3e50; margin-top: 0; border-bottom: 2px solid rgba(0,0,0,0.1); padding-bottom: 10px;">クラスの追加・管理</h2>
+          
+          <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 20px;">
+            <input type="number" id="new-class-year" placeholder="年" min="1" max="6" style="width: 80px;">
+            <span>年</span>
+            <input type="number" id="new-class-num" placeholder="組" min="1" max="10" style="width: 80px;">
+            <span>組</span>
+            <button class="tab-btn" style="padding: 8px 20px; font-size: 1rem;" onclick="addNewClass()">➕ 追加</button>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 20px;">
+            <span style="font-weight: bold; color: #34495e;">特別支援学級</span>
+            <input type="text" id="new-special-class-char" placeholder="A, B..." style="width: 80px; text-transform: uppercase;" maxlength="1">
+            <button class="tab-btn" style="padding: 8px 20px; font-size: 1rem;" onclick="addSpecialClass()">➕ 追加</button>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 20px;">
+            <span style="font-weight: bold; color: #34495e;">通級学級</span>
+            <label style="display: flex; align-items: center; cursor: pointer; margin-left: 10px;">
+              <input type="checkbox" id="resource-room-toggle" onchange="toggleResourceRoom(this.checked)" style="width: auto; margin-right: 8px; transform: scale(1.3);">
+              <span>あり</span>
+            </label>
+          </div>
+
+          <h3 style="color: #34495e; font-size: 1.1rem; margin-bottom: 10px;">登録済みのクラス</h3>
+          <div id="config-class-list" style="display: flex; flex-direction: column; gap: 8px; padding-bottom: 10px;">
+            <!-- JSで動的生成 -->
+          </div>
+
+          <div style="margin-top: 10px; padding-top: 15px; border-top: 1px dashed #ccc;">
+            <h3 style="color: #34495e; font-size: 1.1rem; margin-bottom: 10px;">時間枠の設定</h3>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+              開始: <input type="time" id="config-start-time" style="width: 100px;">
+              終了: <input type="time" id="config-end-time" style="width: 100px;">
+              間隔: <input type="number" id="config-interval" style="width: 60px;">分
+              <button class="danger-btn" style="padding: 6px 15px; font-size: 0.9rem;" onclick="applyTimeConfig()">適用 (※日程表がリセットされます)</button>
+            </div>
+          </div>
+
+          <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc;">
+            <h3 style="color: #34495e; font-size: 1.1rem; margin-bottom: 10px;">日付の設定</h3>
+            <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;" id="date-config-container">
+              <!-- JSで生成 -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- タブ1: 名簿 -->
+      <section id="tab-settings" class="tab-content active">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <div style="color: #555; font-size: 0.9rem;">
+            💡 兄弟情報は <strong>「◯年」「◯組」「名前」</strong> に分けて入力してください。保存時に自動で相互リンクされます。
+          </div>
+          <div style="display: flex; gap: 15px; align-items: center;">
+            <!-- 移動した保存ボタン -->
+            <button class="save-btn" style="padding: 8px 20px; font-size: 1rem;" onclick="saveSettings()">💾 設定を保存して反映</button>
+          </div>
+        </div>
+        
+        <div class="settings-wrapper" id="settings-wrapper">
+          <!-- JSでクラスごとのテーブルを生成 -->
+        </div>
+      </section>
+
+      <!-- タブ2: 日程表 -->
+      <section id="tab-schedule" class="tab-content">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <div style="color: #555; font-size: 0.9rem;">
+            💡 タイトル横のプルダウンでクラスを選んでください。児童名を入力・選択すると兄弟情報が自動的に表示されます。（横スクロールで5日間入力可能です）<br>
+            💡 <span style="color: #e74c3c;">赤色</span>の枠は、兄弟などで同じ時間に予定が重複（ダブルブッキング）しています。<br>
+            💡 入力枠をマウスで掴んでドラッグ＆ドロップすると、予定を入れ替えることができます。
+          </div>
+          <button class="tab-btn" style="padding: 6px 15px; font-size: 0.9rem; background: #fff; border: 1px solid #ccc; color: #333;" onclick="window.print()">🖨️ 印刷</button>
+        </div>
+        <h2 id="print-schedule-title" style="display: none;"></h2>
+        <div class="schedule-wrapper">
+          <table style="width: 1500px; table-layout: fixed;"> <!-- クラス選択が消えて幅が減った分調整 -->
+            <thead>
+              <tr id="schedule-header-row1">
+                <!-- JSで動的生成 -->
+              </tr>
+              <tr id="schedule-header-row2">
+                <!-- JSで動的生成 -->
+              </tr>
+            </thead>
+            <tbody id="schedule-tbody">
+              <!-- JSでスケジュール行を生成 -->
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+  <button id="sync-btn" onclick="if(window.autoSaveToFirebase) { window.autoSaveToFirebase(true); } else { alert('通信準備中です'); }" onmouseover="this.style.opacity=0.8" onmouseout="this.style.opacity=1" style="padding: 10px 24px; background: #e67e22; color: white; border: none; border-radius: 8px; font-size: 1.1rem; font-weight: bold; font-family: inherit; cursor: pointer; box-shadow: 0 4px 10px rgba(230, 126, 34, 0.4); margin-right: 20px; transition: opacity 0.2s;">☁️ 同期</button>
+  <button id="auth-btn" onclick="openAuthModal()" style="padding: 8px 16px; background: white; color: #333; margin-right: 10px;">ログイン</button>
+  
+  <button id="reset-btn" class="danger-btn">🔄 すべてのデータをリセット（初めから）</button>
+</footer>
+  </div>
+
+  <!-- アカウント設定モーダル -->
+  <div class="modal-overlay" id="auth-modal" style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000; backdrop-filter: blur(4px);">
+    <div class="modal-content" style="background: white; padding: 30px; border-radius: 20px; width: 90%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.2);">
+      <h2 style="margin-top: 0; color: #2c3e50;">ログイン</h2>
+      <p style="font-size: 0.85rem; color: #666; margin-bottom: 20px;">
+        メールアドレスを登録すると、別のパソコンやスマホからでも同じデータにアクセスできるようになります。
+      </p>
+      
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; font-size: 0.8rem; margin-bottom: 5px;">メールアドレス</label>
+        <input type="email" id="auth-email" placeholder="example@mail.com" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box;">
+      </div>
+      
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; font-size: 0.8rem; margin-bottom: 5px;">パスワード</label>
+        <input type="password" id="auth-pw" placeholder="6文字以上" style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box;">
+      </div>
+      
+      <div style="display: flex; flex-direction: column; gap: 15px; align-items: center;">
+        <button class="save-btn" style="width: 100%; background: #d4ebd3; color: #2e6029;" onclick="handleLogin()">ログインする</button>
+        <button onclick="handleSignUp()" style="background: none; border: none; color: #666; text-decoration: underline; cursor: pointer; font-size: 0.9rem; font-family: inherit;">アカウントをお持ちでない方（新規登録）</button>
+      </div>
+      
+      <button onclick="closeAuthModal()" style="width: 100%; margin-top: 15px; border: none; background: none; color: #aaa; cursor: pointer; font-size: 0.9rem;">閉じる</button>
+    </div>
+  </div>
+
+  <script>
+    /* -------------------------------------
+       初期設定・データ構造
+    -------------------------------------- */
+    const STORAGE_KEY_SETTINGS = 'homeVisitSettingsData_v2'; 
+    const STORAGE_KEY_SCHEDULE = 'homeVisitScheduleData_v3';
+    const STORAGE_KEY_NO_VISIT = 'homeVisitNoVisitData_v1';
+    const STORAGE_KEY_TIME = 'homeVisitTimeConfig_v1';
+    const STORAGE_KEY_DATE = 'homeVisitDateConfig_v1';
+    
+    // 表示するクラスのリスト（初期設定は各学年1組まで）
+    let classNames = ["1年1組", "2年1組", "3年1組", "4年1組", "5年1組", "6年1組"];
+    const maxStudentsPerClass = 40; // 40番まで
+    
+    // 時間枠と日付の初期設定
+    let timeConfig = { start: "13:30", end: "17:00", interval: 10 };
+    let dateConfig = ["", "", "", "", ""];
+    const timeSlots = [];
+
+    function generateTimeSlots() {
+      timeSlots.length = 0;
+      const [sH, sM] = timeConfig.start.split(':').map(Number);
+      const [eH, eM] = timeConfig.end.split(':').map(Number);
+      let curMins = sH * 60 + sM;
+      const endMins = eH * 60 + eM;
+      
+      while (curMins <= endMins) {
+        const h = Math.floor(curMins / 60);
+        const m = curMins % 60;
+        timeSlots.push(`${h}:${m.toString().padStart(2, '0')}`);
+        curMins += timeConfig.interval;
+      }
+    }
+
+    let settingsData = {};
+    let scheduleData = {}; 
+    let noVisitData = {}; // 追加
+
+    // 効果音 (Googleのフリー音源を使用)
+    const soundSuccess = new Audio('https://actions.google.com/sounds/v1/cartoon/pop.ogg');
+    const soundError = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+
+    /* -------------------------------------
+       初期化処理
+    -------------------------------------- */
+    function init() {
+      // 設定データの読み込み
+      const savedTime = localStorage.getItem(STORAGE_KEY_TIME);
+      if (savedTime) timeConfig = JSON.parse(savedTime);
+      const savedDate = localStorage.getItem(STORAGE_KEY_DATE);
+      if (savedDate) dateConfig = JSON.parse(savedDate);
+      
+      generateTimeSlots();
+
+      const savedSettings = localStorage.getItem(STORAGE_KEY_SETTINGS);
+      if (savedSettings) {
+        settingsData = JSON.parse(savedSettings);
+        classNames = Object.keys(settingsData);
+        // 並び替え (1年1組, 1年2組... の順)
+        classNames.sort((a, b) => {
+           const matchA = a.match(/(\d+)年(\d+)組/);
+           const matchB = b.match(/(\d+)年(\d+)組/);
+           if(matchA && matchB) {
+              if(matchA[1] !== matchB[1]) return parseInt(matchA[1]) - parseInt(matchB[1]);
+              return parseInt(matchA[2]) - parseInt(matchB[2]);
+           } else if (matchA) {
+              return -1;
+           } else if (matchB) {
+              return 1;
+           } else {
+              const weightA = a === "通級学級" ? 2 : (a.startsWith("特別支援") ? 1 : 0);
+              const weightB = b === "通級学級" ? 2 : (b.startsWith("特別支援") ? 1 : 0);
+              if (weightA !== weightB) return weightA - weightB;
+              return a.localeCompare(b);
+           }
+        });
+      } else {
+        classNames.forEach(cls => {
+          settingsData[cls] = generateEmptyClass();
+        });
+      }
+
+      // 「家庭訪問を希望しない」データの読み込み
+      const savedNoVisit = localStorage.getItem(STORAGE_KEY_NO_VISIT);
+      if (savedNoVisit) {
+         noVisitData = JSON.parse(savedNoVisit);
+      }
+      classNames.forEach(cls => {
+         if (!noVisitData[cls]) noVisitData[cls] = [""]; // 初期で1枠
+      });
+
+      // スケジュールデータの読み込み (クラス別・5日分)
+      const savedSchedule = localStorage.getItem(STORAGE_KEY_SCHEDULE);
+      if (savedSchedule) {
+        scheduleData = JSON.parse(savedSchedule);
+        // 新しいクラスが追加されていた場合の補完、および時間枠の拡張対応
+        classNames.forEach(cls => {
+          if (!scheduleData[cls]) {
+            scheduleData[cls] = generateEmptySchedule();
+          } else {
+            for(let d = 0; d < 5; d++){
+              if (!scheduleData[cls][d]) scheduleData[cls][d] = [];
+              while(scheduleData[cls][d].length < timeSlots.length) {
+                scheduleData[cls][d].push({ time: timeSlots[scheduleData[cls][d].length], studentName: "", siblings: "" });
+              }
+            }
+          }
+        });
+      } else {
+        classNames.forEach(cls => {
+          scheduleData[cls] = generateEmptySchedule();
+        });
+      }
+
+      renderTimeDateConfig();
+      updateScheduleClassSelect();
+      setupDatalist();
+      renderSettings();
+      updateScheduleSiblings(); // ロード時に再計算しつつ renderSchedule() も実行される
+      setupTabs();
+      setupResetButton();
+    }
+
+    function generateEmptyClass() {
+      let arr = [];
+      for(let i = 1; i <= maxStudentsPerClass; i++) {
+        arr.push({ number: i, name: "", sibYear: "", sibClass: "", sibName: "", isSpecial: false, isResource: false });
+      }
+      return arr;
+    }
+
+    function generateEmptySchedule() {
+      let schedule = [];
+      for(let d = 0; d < 5; d++){
+        let daySlots = [];
+        timeSlots.forEach(time => {
+          daySlots.push({ time: time, studentName: "", siblings: "" });
+        });
+        schedule.push(daySlots);
+      }
+      return schedule;
+    }
+
+    /* -------------------------------------
+       時間枠・日付の設定 UI 描画
+    -------------------------------------- */
+    function renderTimeDateConfig() {
+      document.getElementById('config-start-time').value = timeConfig.start;
+      document.getElementById('config-end-time').value = timeConfig.end;
+      document.getElementById('config-interval').value = timeConfig.interval;
+
+      const container = document.getElementById('date-config-container');
+      if (!container) return;
+      container.innerHTML = '';
+      for(let d=0; d<5; d++) {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.placeholder = `${d+1}日目`;
+        input.value = dateConfig[d] || "";
+        input.style.width = '80px';
+        input.onchange = (e) => {
+          dateConfig[d] = e.target.value;
+          localStorage.setItem(STORAGE_KEY_DATE, JSON.stringify(dateConfig));
+          if (typeof window.autoSaveToFirebase === 'function') window.autoSaveToFirebase();
+          renderSchedule();
+        };
+        container.appendChild(input);
+      }
+    }
+
+    function applyTimeConfig() {
+      if (!confirm("時間枠を変更すると、現在の日程表の入力データがすべてリセットされます。本当によろしいですか？")) return;
+      
+      timeConfig.start = document.getElementById('config-start-time').value;
+      timeConfig.end = document.getElementById('config-end-time').value;
+      timeConfig.interval = parseInt(document.getElementById('config-interval').value, 10) || 10;
+      
+      localStorage.setItem(STORAGE_KEY_TIME, JSON.stringify(timeConfig));
+      
+      generateTimeSlots();
+      
+      classNames.forEach(cls => {
+        scheduleData[cls] = generateEmptySchedule();
+      });
+      saveScheduleData();
+      if (typeof window.autoSaveToFirebase === 'function') window.autoSaveToFirebase();
+      
+      renderSchedule();
+    }
+
+    /* -------------------------------------
+       クラス選択プルダウンの更新
+    -------------------------------------- */
+    function updateScheduleClassSelect() {
+      const select = document.getElementById('schedule-class-select');
+      const currentVal = select.value;
+      select.innerHTML = classNames.map(c => `<option value="${c}">${c}</option>`).join('');
+      if (classNames.includes(currentVal)) {
+         select.value = currentVal;
+      } else if (classNames.length > 0) {
+         select.value = classNames[0];
+      }
+    }
+
+    /* -------------------------------------
+       クラス追加処理
+    -------------------------------------- */
+    function addNewClass() {
+      const year = document.getElementById('new-class-year').value;
+      const num = document.getElementById('new-class-num').value;
+      
+      if (!year || !num) {
+        alert("追加する「年」と「組」を入力してください。");
+        return;
+      }
+      
+      const newCls = `${year}年${num}組`;
+      if (classNames.includes(newCls)) {
+        alert("そのクラスはすでに存在します。");
+        return;
+      }
+
+      // 現在の入力状態を同期しておく
+      syncDOMtoSettings();
+
+      // 新規追加
+      classNames.push(newCls);
+      // 再度ソート
+      classNames.sort((a, b) => {
+         const matchA = a.match(/(\d+)年(\d+)組/);
+         const matchB = b.match(/(\d+)年(\d+)組/);
+         if(matchA && matchB) {
+            if(matchA[1] !== matchB[1]) return parseInt(matchA[1]) - parseInt(matchB[1]);
+            return parseInt(matchA[2]) - parseInt(matchB[2]);
+         } else if (matchA) {
+            return -1;
+         } else if (matchB) {
+            return 1;
+         } else {
+            const weightA = a === "通級学級" ? 2 : (a.startsWith("特別支援") ? 1 : 0);
+            const weightB = b === "通級学級" ? 2 : (b.startsWith("特別支援") ? 1 : 0);
+            if (weightA !== weightB) return weightA - weightB;
+            return a.localeCompare(b);
+         }
+      });
+      settingsData[newCls] = generateEmptyClass();
+      scheduleData[newCls] = generateEmptySchedule(); // スケジュールも新規作成
+      noVisitData[newCls] = [""]; // 追加
+      
+      localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settingsData));
+      localStorage.setItem(STORAGE_KEY_SCHEDULE, JSON.stringify(scheduleData));
+      localStorage.setItem(STORAGE_KEY_NO_VISIT, JSON.stringify(noVisitData));
+      
+      document.getElementById('new-class-year').value = '';
+      document.getElementById('new-class-num').value = '';
+      
+      updateScheduleClassSelect();
+      renderSettings();
+      renderSchedule(); 
+    }
+
+    function addSpecialClass() {
+      let char = document.getElementById('new-special-class-char').value.trim().toUpperCase();
+      if (!char) {
+        alert("A, B, Cなどのアルファベットを入力してください。");
+        return;
+      }
+      
+      const newCls = `特別支援学級${char}`;
+      if (classNames.includes(newCls)) {
+        alert("そのクラスはすでに存在します。");
+        return;
+      }
+
+      // 現在の入力状態を同期しておく
+      syncDOMtoSettings();
+
+      // 新規追加
+      classNames.push(newCls);
+      // 再度ソート
+      classNames.sort((a, b) => {
+         const matchA = a.match(/(\d+)年(\d+)組/);
+         const matchB = b.match(/(\d+)年(\d+)組/);
+         if(matchA && matchB) {
+            if(matchA[1] !== matchB[1]) return parseInt(matchA[1]) - parseInt(matchB[1]);
+            return parseInt(matchA[2]) - parseInt(matchB[2]);
+         } else if (matchA) {
+            return -1;
+         } else if (matchB) {
+            return 1;
+         } else {
+            const weightA = a === "通級学級" ? 2 : (a.startsWith("特別支援") ? 1 : 0);
+            const weightB = b === "通級学級" ? 2 : (b.startsWith("特別支援") ? 1 : 0);
+            if (weightA !== weightB) return weightA - weightB;
+            return a.localeCompare(b);
+         }
+      });
+      settingsData[newCls] = generateEmptyClass();
+      scheduleData[newCls] = generateEmptySchedule(); // スケジュールも新規作成
+      noVisitData[newCls] = [""]; // 追加
+      
+      localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settingsData));
+      localStorage.setItem(STORAGE_KEY_SCHEDULE, JSON.stringify(scheduleData));
+      localStorage.setItem(STORAGE_KEY_NO_VISIT, JSON.stringify(noVisitData));
+      
+      document.getElementById('new-special-class-char').value = '';
+      
+      updateScheduleClassSelect();
+      renderSettings();
+      renderSchedule(); 
+    }
+
+    function toggleResourceRoom(isChecked) {
+      const clsName = "通級学級";
+      if (isChecked) {
+        if (!classNames.includes(clsName)) {
+          syncDOMtoSettings();
+          classNames.push(clsName);
+          classNames.sort((a, b) => {
+             const matchA = a.match(/(\d+)年(\d+)組/);
+             const matchB = b.match(/(\d+)年(\d+)組/);
+             if(matchA && matchB) {
+               if(matchA[1] !== matchB[1]) return parseInt(matchA[1]) - parseInt(matchB[1]);
+               return parseInt(matchA[2]) - parseInt(matchB[2]);
+             } else if (matchA) {
+               return -1;
+             } else if (matchB) {
+               return 1;
+             } else {
+               const weightA = a === "通級学級" ? 2 : (a.startsWith("特別支援") ? 1 : 0);
+               const weightB = b === "通級学級" ? 2 : (b.startsWith("特別支援") ? 1 : 0);
+               if (weightA !== weightB) return weightA - weightB;
+               return a.localeCompare(b);
+             }
+          });
+          settingsData[clsName] = generateEmptyClass();
+          scheduleData[clsName] = generateEmptySchedule();
+          noVisitData[clsName] = [""];
+          
+          localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settingsData));
+          localStorage.setItem(STORAGE_KEY_SCHEDULE, JSON.stringify(scheduleData));
+          localStorage.setItem(STORAGE_KEY_NO_VISIT, JSON.stringify(noVisitData));
+          
+          updateScheduleClassSelect();
+          renderSettings();
+          renderSchedule(); 
+        }
+      } else {
+        if (classNames.includes(clsName)) {
+          if (confirm(`本当に「${clsName}」を削除しますか？\n入力されているデータもすべて消去されます。`)) {
+             syncDOMtoSettings(); // 現在の入力状態を保存
+             
+             classNames = classNames.filter(c => c !== clsName);
+             delete settingsData[clsName];
+             delete scheduleData[clsName];
+             delete noVisitData[clsName];
+             
+             localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settingsData));
+             localStorage.setItem(STORAGE_KEY_SCHEDULE, JSON.stringify(scheduleData));
+             localStorage.setItem(STORAGE_KEY_NO_VISIT, JSON.stringify(noVisitData));
+             
+             updateScheduleClassSelect();
+             renderSettings();
+             renderSchedule();
+          } else {
+             // キャンセルされたらトグルを元に戻す
+             document.getElementById('resource-room-toggle').checked = true;
+          }
+        }
+      }
+    }
+
+    /* -------------------------------------
+       クラス削除処理
+    -------------------------------------- */
+    function deleteClass(clsToRemove) {
+      if (confirm(`本当に「${clsToRemove}」を削除しますか？\n入力されているデータもすべて消去されます。`)) {
+         syncDOMtoSettings(); // 現在の入力状態を保存
+         
+         classNames = classNames.filter(c => c !== clsToRemove);
+         delete settingsData[clsToRemove];
+         delete scheduleData[clsToRemove];
+         delete noVisitData[clsToRemove];
+         
+         localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settingsData));
+         localStorage.setItem(STORAGE_KEY_SCHEDULE, JSON.stringify(scheduleData));
+         localStorage.setItem(STORAGE_KEY_NO_VISIT, JSON.stringify(noVisitData));
+         
+         updateScheduleClassSelect();
+         renderSettings();
+         renderSchedule();
+      }
+    }
+
+    // DOMの入力値を内部データに同期する関数
+    function syncDOMtoSettings() {
+      const nameInputs = document.querySelectorAll('.setting-name');
+      const isSpecialInputs = document.querySelectorAll('.setting-is-special');
+      const isResourceInputs = document.querySelectorAll('.setting-is-resource');
+      const sibYearInputs = document.querySelectorAll('.setting-sib-year');
+      const sibClassInputs = document.querySelectorAll('.setting-sib-class');
+      const sibNameInputs = document.querySelectorAll('.setting-sib-name');
+      
+      nameInputs.forEach((input, i) => {
+        const cls = input.dataset.class;
+        const idx = input.dataset.idx;
+        settingsData[cls][idx].name = input.value;
+        settingsData[cls][idx].isSpecial = isSpecialInputs[i].checked;
+        settingsData[cls][idx].isResource = isResourceInputs[i].checked;
+        settingsData[cls][idx].sibYear = sibYearInputs[i].value;
+        settingsData[cls][idx].sibClass = sibClassInputs[i].value;
+        settingsData[cls][idx].sibName = sibNameInputs[i].value;
+        
+        // 追加兄弟配列を初期化
+        settingsData[cls][idx].extraSiblings = [];
+      });
+
+      // 追加兄弟行を取得して格納
+      const extraRows = document.querySelectorAll('.extra-sibling-row');
+      extraRows.forEach(row => {
+        const cls = row.dataset.class;
+        const idx = row.dataset.idx;
+        const y = row.querySelector('.extra-sib-year').value;
+        const c = row.querySelector('.extra-sib-class').value;
+        const n = row.querySelector('.extra-sib-name').value;
+        settingsData[cls][idx].extraSiblings.push({
+          sibYear: y,
+          sibClass: c,
+          sibName: n
+        });
+      });
+    }
+
+    // 名簿の入力中にローカルのデータを同期・保存し、自動保存をトリガーする関数
+    function autoSaveSettingsLocal() {
+      syncDOMtoSettings();
+      localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settingsData));
+    }
+
+    // 追加兄弟用の行を追加する関数
+    function addExtraSibling(cls, index) {
+      syncDOMtoSettings(); // 現在の入力を保存
+      if (!settingsData[cls][index].extraSiblings) {
+        settingsData[cls][index].extraSiblings = [];
+      }
+      settingsData[cls][index].extraSiblings.push({sibYear: "", sibClass: "", sibName: ""});
+      localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settingsData));
+      renderSettings();
+    }
+
+    // 追加兄弟用の行を削除する関数
+    function removeExtraSibling(cls, index, extIdx) {
+      syncDOMtoSettings(); // 現在の入力を保存
+      if (settingsData[cls][index].extraSiblings) {
+        settingsData[cls][index].extraSiblings.splice(extIdx, 1);
+      }
+      localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settingsData));
+      renderSettings();
+    }
+
+    // 氏名が入力されたとき、他のクラスで兄弟として指定されていれば自動補完する
+    function autoFillSibling(inputElem) {
+      const myName = inputElem.value.trim();
+      if (!myName) return;
+      
+      const myClass = inputElem.dataset.class;
+      const myMatch = myClass.match(/^(\d+)年(\d+)組$/);
+      if (!myMatch) return;
+      const myYear = myMatch[1];
+      const myClassNum = myMatch[2];
+
+      const myRow = inputElem.closest('tr');
+      const sibYearInput = myRow.querySelector('.setting-sib-year');
+      const sibClassInput = myRow.querySelector('.setting-sib-class');
+      const sibNameInput = myRow.querySelector('.setting-sib-name');
+
+      // 既に兄弟情報が手入力されている場合は上書きしない
+      if (sibYearInput.value || sibClassInput.value || sibNameInput.value) return;
+
+      // 現在の画面の入力を一旦データに同期させる
+      syncDOMtoSettings();
+
+      let foundSiblings = [];
+      for (const cls of classNames) {
+        for (const s of settingsData[cls]) {
+          const sibMatch = cls.match(/^(\d+)年(\d+)組$/);
+          if (!sibMatch) continue;
+
+          // 相手のメイン兄弟枠をチェック
+          if (s.name.trim() && String(s.sibYear) === String(myYear) && String(s.sibClass) === String(myClassNum) && s.sibName.trim() === myName) {
+             foundSiblings.push({
+                year: sibMatch[1],
+                classNum: sibMatch[2],
+                name: s.name.trim()
+             });
+          }
+          // 相手の追加兄弟枠をチェック
+          if (s.name.trim() && s.extraSiblings) {
+             s.extraSiblings.forEach(ext => {
+                if (String(ext.sibYear) === String(myYear) && String(ext.sibClass) === String(myClassNum) && ext.sibName.trim() === myName) {
+                   foundSiblings.push({
+                      year: sibMatch[1],
+                      classNum: sibMatch[2],
+                      name: s.name.trim()
+                   });
+                }
+             });
+          }
+        }
+      }
+
+      // 見つかったら画面の入力欄に反映し、データを同期
+      if (foundSiblings.length > 0) {
+        // 1人目はメイン枠へ反映
+        sibYearInput.value = foundSiblings[0].year;
+        sibClassInput.value = foundSiblings[0].classNum;
+        sibNameInput.value = foundSiblings[0].name;
+        
+        // 2人目以降は追加兄弟枠へ追加
+        if (foundSiblings.length > 1) {
+           const cls = inputElem.dataset.class;
+           const idx = inputElem.dataset.idx;
+           if (!settingsData[cls][idx].extraSiblings) settingsData[cls][idx].extraSiblings = [];
+           
+           for(let i = 1; i < foundSiblings.length; i++) {
+              // 重複追加を防ぐ
+              const exists = settingsData[cls][idx].extraSiblings.some(ext => 
+                  ext.sibYear == foundSiblings[i].year && 
+                  ext.sibClass == foundSiblings[i].classNum && 
+                  ext.sibName == foundSiblings[i].name
+              );
+              if (!exists) {
+                 settingsData[cls][idx].extraSiblings.push({
+                    sibYear: foundSiblings[i].year,
+                    sibClass: foundSiblings[i].classNum,
+                    sibName: foundSiblings[i].name
+                 });
+              }
+           }
+           renderSettings(); // UIを更新
+        }
+        
+        syncDOMtoSettings();
+      }
+    }
+
+    /* -------------------------------------
+       UI描画: 設定表
+    -------------------------------------- */
+    function renderConfigClasses() {
+      const configList = document.getElementById('config-class-list');
+      if (!configList) return;
+      configList.innerHTML = '';
+      classNames.forEach(cls => {
+        const div = document.createElement('div');
+        div.style.background = 'rgba(255, 255, 255, 0.8)';
+        div.style.padding = '10px 15px';
+        div.style.borderRadius = '8px';
+        div.style.display = 'flex';
+        div.style.justifyContent = 'space-between';
+        div.style.alignItems = 'center';
+        div.style.border = '1px solid rgba(0,0,0,0.1)';
+        div.style.fontWeight = 'bold';
+        div.style.color = '#2c3e50';
+        
+        let html = `<span>${cls}</span>`;
+        if (!cls.endsWith("1組")) {
+           html += `<button class="danger-btn" style="padding: 4px 8px; font-size: 0.8rem;" onclick="deleteClass('${cls}')">削除</button>`;
+        }
+        div.innerHTML = html;
+        configList.appendChild(div);
+      });
+      
+      const rrToggle = document.getElementById('resource-room-toggle');
+      if (rrToggle) {
+        rrToggle.checked = classNames.includes("通級学級");
+      }
+    }
+
+    function renderSettings() {
+      renderConfigClasses(); // 設定タブのクラス一覧も描画
+
+      const wrapper = document.getElementById('settings-wrapper');
+      wrapper.innerHTML = '';
+
+      classNames.forEach(cls => {
+        if (cls.startsWith("特別支援学級") || cls === "通級学級") return;
+
+        const classBox = document.createElement('div');
+        classBox.className = 'class-box';
+        
+        let headerHtml = `<h3 style="position: sticky; top: -16px; background: rgba(255, 255, 255, 0.95); z-index: 11; margin: -15px -15px 0 -15px; padding: 15px 15px 10px 15px; border-radius: 12px 12px 0 0; border-bottom: 2px solid rgba(0,0,0,0.1);">
+                            ${cls}`;
+        // 1組以外は削除ボタンを表示
+        if (!cls.endsWith("1組")) {
+           headerHtml += `<button class="danger-btn" style="position: absolute; right: 15px; top: 10px; padding: 4px 8px; font-size: 0.8rem;" onclick="deleteClass('${cls}')">削除</button>`;
+        }
+        headerHtml += `</h3>`;
+        
+        let html = headerHtml;
+        html += `<table>
+                  <thead>
+                  <tr>
+                    <th rowspan="2" class="num-col" style="position: sticky; top: 38px; background: rgba(255, 255, 255, 0.95); z-index: 10;">番</th>
+                    <th rowspan="2" style="min-width:110px; position: sticky; top: 38px; background: rgba(255, 255, 255, 0.95); z-index: 10;">氏名</th>
+                    <th rowspan="2" style="width: 30px; text-align: center; font-size: 0.7rem; position: sticky; top: 38px; background: rgba(255, 255, 255, 0.95); z-index: 10;">特支</th>
+                    <th rowspan="2" style="width: 30px; text-align: center; font-size: 0.7rem; position: sticky; top: 38px; background: rgba(255, 255, 255, 0.95); z-index: 10;">通級</th>
+                    <th colspan="3" style="text-align:center; border-bottom:1px solid #ddd; position: sticky; top: 38px; background: rgba(255, 255, 255, 0.95); z-index: 10;">兄弟情報</th>
+                  </tr>
+                  <tr>
+                    <th style="font-size:0.8rem; text-align:center; position: sticky; top: 71px; background: rgba(255, 255, 255, 0.95); z-index: 10; border-bottom: 1px solid rgba(0,0,0,0.05);">年</th>
+                    <th style="font-size:0.8rem; text-align:center; position: sticky; top: 71px; background: rgba(255, 255, 255, 0.95); z-index: 10; border-bottom: 1px solid rgba(0,0,0,0.05);">組</th>
+                    <th style="font-size:0.8rem; position: sticky; top: 71px; background: rgba(255, 255, 255, 0.95); z-index: 10; border-bottom: 1px solid rgba(0,0,0,0.05);">名前</th>
+                  </tr>
+                  </thead>
+                  <tbody>`;
+        
+        settingsData[cls].forEach((student, index) => {
+          // メインの行
+          html += `
+            <tr class="student-row" data-class="${cls}" data-idx="${index}">
+              <td class="num-col">${student.number}</td>
+              <td><input type="text" value="${student.name}" data-class="${cls}" data-idx="${index}" class="setting-name" onchange="autoFillSibling(this); autoSaveSettingsLocal();"></td>
+              <td style="text-align: center;"><input type="checkbox" class="setting-is-special" ${student.isSpecial ? 'checked' : ''} data-class="${cls}" data-idx="${index}" style="width: 16px; height: 16px;" onchange="autoSaveSettingsLocal();"></td>
+              <td style="text-align: center;"><input type="checkbox" class="setting-is-resource" ${student.isResource ? 'checked' : ''} data-class="${cls}" data-idx="${index}" style="width: 16px; height: 16px;" onchange="autoSaveSettingsLocal();"></td>
+              <td><input type="number" value="${student.sibYear || ''}" class="setting-sib-year" style="width: 45px; text-align:center;" min="1" max="6" onchange="autoSaveSettingsLocal();"></td>
+              <td><input type="number" value="${student.sibClass || ''}" class="setting-sib-class" style="width: 45px; text-align:center;" min="1" max="10" onchange="autoSaveSettingsLocal();"></td>
+              <td style="display:flex; gap:5px; align-items:center;">
+                <input type="text" value="${student.sibName || ''}" class="setting-sib-name" onchange="autoSaveSettingsLocal();">
+                <button type="button" class="tab-btn" style="padding: 2px 8px; font-size: 0.8rem; min-width: 28px;" onclick="addExtraSibling('${cls}', ${index})">＋</button>
+              </td>
+            </tr>
+          `;
+          // 追加の兄弟行
+          if (student.extraSiblings && student.extraSiblings.length > 0) {
+             student.extraSiblings.forEach((extSib, extIdx) => {
+               html += `
+                <tr class="extra-sibling-row" data-class="${cls}" data-idx="${index}">
+                  <td colspan="4" style="text-align: right; font-size: 0.8rem; color: #888; padding-right: 10px; border-bottom: 1px dashed rgba(0,0,0,0.1);">↳ 追加兄弟</td>
+                  <td style="border-bottom: 1px dashed rgba(0,0,0,0.1);"><input type="number" value="${extSib.sibYear || ''}" class="extra-sib-year" style="width: 45px; text-align:center;" min="1" max="6" onchange="autoSaveSettingsLocal();"></td>
+                  <td style="border-bottom: 1px dashed rgba(0,0,0,0.1);"><input type="number" value="${extSib.sibClass || ''}" class="extra-sib-class" style="width: 45px; text-align:center;" min="1" max="10" onchange="autoSaveSettingsLocal();"></td>
+                  <td style="display:flex; gap:5px; align-items:center; border-bottom: 1px dashed rgba(0,0,0,0.1);">
+                    <input type="text" value="${extSib.sibName || ''}" class="extra-sib-name" onchange="autoSaveSettingsLocal();">
+                    <button type="button" class="danger-btn" style="padding: 2px 8px; font-size: 0.8rem; min-width: 28px;" onclick="removeExtraSibling('${cls}', ${index}, ${extIdx})">－</button>
+                  </td>
+                </tr>
+               `;
+             });
+          }
+        });
+        html += `</tbody></table>`;
+        classBox.innerHTML = html;
+        wrapper.appendChild(classBox);
+      });
+    }
+
+    /* -------------------------------------
+       設定の保存 & 双方向リンク処理
+    -------------------------------------- */
+    function saveSettings() {
+      // DOMから現在の入力を取得して更新
+      syncDOMtoSettings();
+
+      // 双方向リンクの構築処理
+      applyBiDirectionalLinks();
+
+      // データの保存とUI更新
+      localStorage.setItem(STORAGE_KEY_SETTINGS, JSON.stringify(settingsData));
+      
+      setupDatalist();
+      renderSettings();
+      updateScheduleSiblings(); // スケジュール側の兄弟情報も最新化して保存
+      
+      // 成功の演出
+      soundSuccess.currentTime = 0; soundSuccess.play().catch(()=>{});
+    }
+
+    // 双方向リンクのコアアルゴリズム
+    function applyBiDirectionalLinks() {
+      const allStudents = [];
+      // 登録されている全生徒をフラットなリスト化
+      classNames.forEach(cls => {
+        settingsData[cls].forEach(s => {
+          if (s.name.trim()) {
+             const myMatch = cls.match(/^(\d+)年(\d+)組$/);
+             if(myMatch) {
+               const addLink = (targetYear, targetClass, targetName) => {
+                 if (targetYear && targetClass && targetName.trim()) {
+                    allStudents.push({ 
+                      myYear: myMatch[1], 
+                      myClass: myMatch[2], 
+                      myName: s.name.trim(),
+                      targetYear: targetYear,
+                      targetClass: targetClass,
+                      targetName: targetName.trim()
+                    });
+                 }
+               };
+               
+               // メイン枠の登録
+               addLink(s.sibYear, s.sibClass, s.sibName);
+               
+               // 追加枠の登録
+               if (s.extraSiblings) {
+                  s.extraSiblings.forEach(ext => {
+                     addLink(ext.sibYear, ext.sibClass, ext.sibName);
+                  });
+               }
+             }
+          }
+        });
+      });
+
+      // 抽出したリンク情報を対象の児童に反映
+      allStudents.forEach(link => {
+        const targetCls = `${link.targetYear}年${link.targetClass}組`;
+        
+        // 対象クラスが存在しない場合は自動作成
+        if (!settingsData[targetCls]) {
+           settingsData[targetCls] = generateEmptyClass();
+           scheduleData[targetCls] = generateEmptySchedule();
+           noVisitData[targetCls] = [""];
+           if(!classNames.includes(targetCls)) {
+               classNames.push(targetCls);
+               // ソート維持
+               classNames.sort((a, b) => {
+                 const matchA = a.match(/(\d+)年(\d+)組/);
+                 const matchB = b.match(/(\d+)年(\d+)組/);
+                 if(matchA && matchB) {
+                    if(matchA[1] !== matchB[1]) return parseInt(matchA[1]) - parseInt(matchB[1]);
+                    return parseInt(matchA[2]) - parseInt(matchB[2]);
+                 } else if (matchA) {
+                    return -1;
+                 } else if (matchB) {
+                    return 1;
+                 } else {
+                    const weightA = a === "通級学級" ? 2 : (a.startsWith("特別支援") ? 1 : 0);
+                    const weightB = b === "通級学級" ? 2 : (b.startsWith("特別支援") ? 1 : 0);
+                    if (weightA !== weightB) return weightA - weightB;
+                    return a.localeCompare(b);
+                 }
+              });
+              updateScheduleClassSelect();
+           }
+        }
+
+        // 対象クラス内に指定された名前の児童がいるか検索
+        let targetStudent = settingsData[targetCls].find(s => s.name.trim() === link.targetName);
+
+        // 児童が見つかった場合、兄弟情報を追加
+        if (targetStudent) {
+          // すでに自分（リンク元）が兄弟として登録されているかチェック
+          let alreadyLinked = false;
+          if (targetStudent.sibYear == link.myYear && targetStudent.sibClass == link.myClass && targetStudent.sibName == link.myName) {
+            alreadyLinked = true;
+          }
+          if (targetStudent.extraSiblings) {
+             targetStudent.extraSiblings.forEach(ext => {
+                if (ext.sibYear == link.myYear && ext.sibClass == link.myClass && ext.sibName == link.myName) {
+                   alreadyLinked = true;
+                }
+             });
+          }
+
+          if (!alreadyLinked) {
+            if (!targetStudent.sibYear && !targetStudent.sibClass && !targetStudent.sibName) {
+              targetStudent.sibYear = link.myYear;
+              targetStudent.sibClass = link.myClass;
+              targetStudent.sibName = link.myName;
+            } else {
+              // メインが埋まっていれば追加枠へ格納
+              if (!targetStudent.extraSiblings) targetStudent.extraSiblings = [];
+              targetStudent.extraSiblings.push({
+                sibYear: link.myYear,
+                sibClass: link.myClass,
+                sibName: link.myName
+              });
+            }
+          }
+        }
+      });
+    }
+
+    /* -------------------------------------
+       UI描画: 日程表 (スケジュール 5日分)
+    -------------------------------------- */
+    // ダブルブッキングの判定
+    function checkDoubleBooking(currentClass, d, tIdx, studentName) {
+      if (!studentName || !studentName.trim()) return false;
+      const targetName = studentName.trim();
+
+      for (const otherCls of classNames) {
+        if (otherCls === currentClass) continue;
+        if (scheduleData[otherCls] && scheduleData[otherCls][d] && scheduleData[otherCls][d][tIdx]) {
+          const otherStudentName = scheduleData[otherCls][d][tIdx].studentName.trim();
+          if (otherStudentName) {
+             // 同姓同名チェック
+             if (otherStudentName === targetName) return true;
+             // 兄弟チェック
+             if (checkIsSibling(currentClass, otherCls, otherStudentName)) return true;
+             if (checkIsSibling(otherCls, currentClass, targetName)) return true;
+          }
+        }
+      }
+      return false;
+    }
+
+    function renderSchedule() {
+      const currentClass = document.getElementById('schedule-class-select').value;
+      if (!currentClass) return; // クラスがない場合は描画しない
+
+      // 印刷用タイトルの更新
+      const printTitle = document.getElementById('print-schedule-title');
+      if (printTitle) printTitle.textContent = currentClass + ' 日程表';
+
+      setupDatalist(); // クラスが変わったらサジェストリストを更新
+
+      const table = document.querySelector('.schedule-wrapper table');
+
+      // ヘッダの生成
+      const hr1 = document.getElementById('schedule-header-row1');
+      const hr2 = document.getElementById('schedule-header-row2');
+      hr1.innerHTML = `<th rowspan="2" style="width: 80px; min-width: 80px; max-width: 80px; position: sticky; left: 0; top: 0; background: #fafafa; z-index: 13; border-right: 2px solid #ccc; border-bottom: 2px solid #ccc;">時刻</th>`;
+      hr2.innerHTML = '';
+      
+      for(let d = 0; d < 5; d++){
+        // クラス選択列を削除したので colspan は 2 に変更
+        hr1.innerHTML += `<th colspan="2" style="text-align:center; position: sticky; top: 0; background: rgba(255,255,255,0.95); z-index: 10; border-right: 2px solid #ccc; border-bottom: 1px solid #ccc;">${d+1}日目<br><span style="font-size:0.75rem;font-weight:normal;">${dateConfig[d] || ''}</span></th>`;
+        hr2.innerHTML += `
+          <th style="width: 140px; min-width: 140px; max-width: 140px; position: sticky; top: 37px; background: rgba(255,255,255,0.95); z-index: 10; border-bottom: 2px solid #ccc;">氏名</th>
+          <th style="width: 140px; min-width: 140px; max-width: 140px; font-size:0.8rem; border-right: 2px solid #ccc; position: sticky; top: 37px; background: rgba(255,255,255,0.95); z-index: 10; border-bottom: 2px solid #ccc;">兄弟 (自動)</th>
+        `; 
+      }
+
+      const tbody = document.getElementById('schedule-tbody');
+      tbody.innerHTML = '';
+
+      timeSlots.forEach((time, tIdx) => {
+        const tr = document.createElement('tr');
+        
+        // 時刻 (左端固定)
+        const tdTime = document.createElement('td');
+        tdTime.textContent = time;
+        tdTime.style.fontWeight = "bold";
+        tdTime.style.color = "#2c3e50";
+        tdTime.style.position = "sticky";
+        tdTime.style.left = "0";
+        tdTime.style.background = "#fafafa";
+        tdTime.style.zIndex = "5"; // 1から5に変更し、ヘッダーより下に
+        tdTime.style.borderRight = "2px solid #ccc";
+        tr.appendChild(tdTime);
+        
+        // 5日分の入力セルを生成
+        for(let d = 0; d < 5; d++){
+          const item = scheduleData[currentClass][d][tIdx];
+          
+          // 対象児童名 (入力欄)
+          const tdName = document.createElement('td');
+          const inputName = document.createElement('input');
+          inputName.type = 'text';
+          inputName.value = item ? item.studentName : "";
+          inputName.setAttribute('list', 'student-list');
+          inputName.placeholder = "名前...";
+
+          // ダブルブッキングのチェックと表示
+          const isDoubleBooked = checkDoubleBooking(currentClass, d, tIdx, item ? item.studentName : "");
+          if (isDoubleBooked) {
+             inputName.classList.add('double-booked');
+             inputName.title = "他のクラスで同じ時間に予定が入っています（ダブルブッキング）";
+          } else {
+             inputName.classList.remove('double-booked');
+             inputName.title = "";
+          }
+
+          // ドラッグ＆ドロップ設定
+          inputName.draggable = true;
+          inputName.addEventListener('dragstart', (e) => {
+            e.dataTransfer.setData('text/plain', JSON.stringify({
+              fromClass: currentClass,
+              fromD: d,
+              fromTIdx: tIdx
+            }));
+            e.dataTransfer.effectAllowed = 'move';
+          });
+
+          tdName.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            tdName.style.background = 'rgba(76, 175, 80, 0.2)';
+          });
+
+          tdName.addEventListener('dragleave', (e) => {
+            tdName.style.background = '';
+          });
+
+          tdName.addEventListener('drop', (e) => {
+            e.preventDefault();
+            tdName.style.background = '';
+            const dataStr = e.dataTransfer.getData('text/plain');
+            if (!dataStr) return;
+            try {
+              const data = JSON.parse(dataStr);
+              const { fromClass, fromD, fromTIdx } = data;
+              if (fromClass === currentClass && fromD === d && fromTIdx === tIdx) return; // 同じ場所
+
+              const targetItem = scheduleData[currentClass][d][tIdx] || {time: timeSlots[tIdx], studentName: "", siblings: ""};
+              const sourceItem = scheduleData[fromClass][fromD][fromTIdx] || {time: timeSlots[fromTIdx], studentName: "", siblings: ""};
+              
+              const sourceName = sourceItem.studentName;
+              const targetName = targetItem.studentName;
+
+              // Swap
+              if (!scheduleData[fromClass][fromD][fromTIdx]) scheduleData[fromClass][fromD][fromTIdx] = {time: timeSlots[fromTIdx], studentName: "", siblings: ""};
+              scheduleData[fromClass][fromD][fromTIdx].studentName = targetName;
+              
+              if (!scheduleData[currentClass][d][tIdx]) scheduleData[currentClass][d][tIdx] = {time: timeSlots[tIdx], studentName: "", siblings: ""};
+              scheduleData[currentClass][d][tIdx].studentName = sourceName;
+
+              updateScheduleSiblings();
+              if (typeof window.autoSaveToFirebase === 'function') window.autoSaveToFirebase();
+            } catch (err) {
+              console.error(err);
+            }
+          });
+
+          // 兄弟情報 (自動反映表示)
+          const tdSiblings = document.createElement('td');
+          tdSiblings.style.borderRight = "2px solid #ccc"; // 日ごとの区切り
+          const spanSiblings = document.createElement('span');
+          spanSiblings.className = 'readonly-text';
+          spanSiblings.style.fontSize = '0.8rem'; // フォントを小さくする
+          spanSiblings.style.padding = '5px 4px';
+          spanSiblings.textContent = item ? (item.siblings || "") : "";
+          
+          if(item && item.siblings) {
+            spanSiblings.style.background = "rgba(76, 175, 80, 0.1)";
+            spanSiblings.style.color = "#27ae60";
+            spanSiblings.style.fontWeight = "bold";
+          }
+          
+          // 入力時の自動反映イベント
+          const handleUpdate = () => {
+            const nameVal = inputName.value.trim();
+            if(!scheduleData[currentClass][d][tIdx]) scheduleData[currentClass][d][tIdx] = {time: time, studentName: "", siblings: ""};
+            scheduleData[currentClass][d][tIdx].studentName = nameVal;
+            
+            // 自クラスの該当セルの兄弟情報を再計算（同時間帯の他クラスの予定を調べる）
+            const sibInfo = findSiblingSchedules(currentClass, d, tIdx);
+            scheduleData[currentClass][d][tIdx].siblings = sibInfo;
+            
+            spanSiblings.textContent = sibInfo || "";
+            if(sibInfo) {
+              spanSiblings.style.background = "rgba(76, 175, 80, 0.1)";
+              spanSiblings.style.color = "#27ae60";
+              spanSiblings.style.fontWeight = "bold";
+            } else {
+              spanSiblings.style.background = "rgba(0,0,0,0.03)";
+              spanSiblings.style.color = "#555";
+              spanSiblings.style.fontWeight = "normal";
+            }
+
+            // 他クラスへの波及も計算して保存（自分が入力したことで他クラスの兄弟表示が変わるため）
+            classNames.forEach(cls => {
+               if(cls !== currentClass && scheduleData[cls]) {
+                  if(!scheduleData[cls][d][tIdx]) scheduleData[cls][d][tIdx] = {time: time, studentName: "", siblings: ""};
+                  scheduleData[cls][d][tIdx].siblings = findSiblingSchedules(cls, d, tIdx);
+               }
+            });
+
+            saveScheduleData();
+            updateUnenteredStudentsDisplay(); // 未入力の子を更新
+          };
+
+          inputName.addEventListener('change', () => {
+            handleUpdate();
+            renderSchedule(); // 変更が確定したタイミングで全体を再描画（警告表示などのため）
+          });
+
+          tdName.appendChild(inputName);
+          tdSiblings.appendChild(spanSiblings);
+
+          tr.appendChild(tdName);
+          tr.appendChild(tdSiblings);
+        }
+        tbody.appendChild(tr);
+      });
+
+      // 古いtfootがあれば削除
+      const oldTfoot = table.querySelector('tfoot');
+      if(oldTfoot) oldTfoot.remove();
+
+      // フッターの生成
+      const tfoot = document.createElement('tfoot');
+      
+      // --- 1段目：家庭訪問を希望しない 行 ---
+      const trFoot = document.createElement('tr');
+
+      const tdFootTitle = document.createElement('td');
+      tdFootTitle.innerHTML = "家庭訪問を<br>希望しない";
+      tdFootTitle.style.fontWeight = "bold";
+      tdFootTitle.style.color = "#2c3e50";
+      tdFootTitle.style.position = "sticky";
+      tdFootTitle.style.left = "0";
+      tdFootTitle.style.background = "#fafafa";
+      tdFootTitle.style.zIndex = "5";
+      tdFootTitle.style.borderRight = "2px solid #ccc";
+      tdFootTitle.style.borderTop = "2px solid #ccc";
+      tdFootTitle.style.fontSize = "0.75rem";
+      trFoot.appendChild(tdFootTitle);
+
+      const tdFootContent = document.createElement('td');
+      tdFootContent.colSpan = 10;
+      tdFootContent.style.background = "#fafafa";
+      tdFootContent.style.padding = "8px";
+      tdFootContent.style.borderTop = "2px solid #ccc";
+
+      const noVisitContainer = document.createElement('div');
+      noVisitContainer.style.display = "flex";
+      noVisitContainer.style.gap = "10px";
+      noVisitContainer.style.overflowX = "auto";
+      noVisitContainer.style.alignItems = "center";
+
+      function renderNoVisitContainer() {
+          noVisitContainer.innerHTML = '';
+          let list = noVisitData[currentClass] || [""];
+          
+          // 空の要素を詰める (最後以外)
+          list = list.filter((name, idx) => name.trim() !== "" || idx === list.length - 1);
+          
+          // 最後が空でなければ空を追加
+          if (list.length === 0 || list[list.length - 1].trim() !== "") {
+              list.push("");
+          }
+          noVisitData[currentClass] = list;
+
+          list.forEach((name, idx) => {
+              const input = document.createElement('input');
+              input.type = 'text';
+              input.value = name;
+              input.setAttribute('list', 'student-list');
+              input.placeholder = "名前...";
+              input.style.width = "150px";
+              input.style.flexShrink = "0";
+              
+              input.addEventListener('change', (e) => {
+                  list[idx] = e.target.value.trim();
+                  noVisitData[currentClass] = list;
+                  localStorage.setItem(STORAGE_KEY_NO_VISIT, JSON.stringify(noVisitData));
+                  renderNoVisitContainer(); // フォーカスが外れたタイミングで再描画し整える
+                  updateUnenteredStudentsDisplay(); // 未入力の子を更新
+              });
+              
+              noVisitContainer.appendChild(input);
+          });
+      }
+      renderNoVisitContainer();
+      tdFootContent.appendChild(noVisitContainer);
+      trFoot.appendChild(tdFootContent);
+      tfoot.appendChild(trFoot);
+      
+      // --- 2段目：未入力の子 行 ---
+      const trUnentered = document.createElement('tr');
+
+      const tdUnenteredTitle = document.createElement('td');
+      tdUnenteredTitle.innerHTML = "未入力の子";
+      tdUnenteredTitle.style.fontWeight = "bold";
+      tdUnenteredTitle.style.color = "#2c3e50";
+      tdUnenteredTitle.style.position = "sticky";
+      tdUnenteredTitle.style.left = "0";
+      tdUnenteredTitle.style.background = "#fafafa";
+      tdUnenteredTitle.style.zIndex = "5";
+      tdUnenteredTitle.style.borderRight = "2px solid #ccc";
+      tdUnenteredTitle.style.borderTop = "1px solid #ccc";
+      tdUnenteredTitle.style.fontSize = "0.75rem";
+      tdUnenteredTitle.style.boxSizing = "border-box";
+      tdUnenteredTitle.style.height = "40px";
+      trUnentered.appendChild(tdUnenteredTitle);
+
+      const tdUnenteredContent = document.createElement('td');
+      tdUnenteredContent.colSpan = 10;
+      tdUnenteredContent.style.background = "#fafafa";
+      tdUnenteredContent.style.padding = "8px";
+      tdUnenteredContent.style.borderTop = "1px solid #ccc";
+      tdUnenteredContent.style.boxSizing = "border-box";
+      tdUnenteredContent.style.height = "40px";
+      tdUnenteredContent.style.overflowX = "auto";
+      tdUnenteredContent.style.whiteSpace = "nowrap";
+
+      const unenteredDisplaySpan = document.createElement('span');
+      unenteredDisplaySpan.id = 'unentered-students-display';
+      unenteredDisplaySpan.style.fontWeight = 'bold';
+      
+      tdUnenteredContent.appendChild(unenteredDisplaySpan);
+      trUnentered.appendChild(tdUnenteredContent);
+
+      tfoot.appendChild(trUnentered);
+      
+      table.appendChild(tfoot);
+
+      // 初期表示用に未入力リストを更新
+      updateUnenteredStudentsDisplay();
+    }
+
+    // 指定されたクラス・日時において、他クラスで予定されている兄弟を検索する
+    function findSiblingSchedules(currentClass, d, tIdx) {
+      let siblingsStr = [];
+      classNames.forEach(otherCls => {
+        if (otherCls === currentClass) return;
+        if (scheduleData[otherCls] && scheduleData[otherCls][d] && scheduleData[otherCls][d][tIdx]) {
+          const otherStudentName = scheduleData[otherCls][d][tIdx].studentName.trim();
+          if (otherStudentName) {
+            // その児童が、currentClassの誰かの兄弟であるかチェック
+            if (checkIsSibling(currentClass, otherCls, otherStudentName)) {
+               siblingsStr.push(`${otherCls} ${otherStudentName}`);
+            }
+          }
+        }
+      });
+      return siblingsStr.join('\n'); // 縦に改行して表示する
+    }
+
+    // currentClassの児童一覧の中に、otherClassのotherStudentNameを兄弟として持っている児童がいるか判定
+    function checkIsSibling(currentClass, otherClass, otherStudentName) {
+      // --- 特別支援・通級の判定 ---
+      // otherClass の otherStudentName が、特別支援学級/通級学級の対象としてチェックされているか
+      if (settingsData[otherClass]) {
+        const targetStudent = settingsData[otherClass].find(s => s.name.trim() === otherStudentName);
+        if (targetStudent) {
+          if (currentClass.startsWith("特別支援学級") && targetStudent.isSpecial) {
+             return true;
+          }
+          if (currentClass === "通級学級" && targetStudent.isResource) {
+             return true;
+          }
+        }
+      }
+      
+      // currentClassが通常学級で、otherClassが特別支援/通級の場合（逆引き）
+      if (settingsData[currentClass]) {
+        if (otherClass.startsWith("特別支援学級")) {
+           const myStudent = settingsData[currentClass].find(s => s.name.trim() === otherStudentName);
+           if (myStudent && myStudent.isSpecial) return true;
+        }
+        if (otherClass === "通級学級") {
+           const myStudent = settingsData[currentClass].find(s => s.name.trim() === otherStudentName);
+           if (myStudent && myStudent.isResource) return true;
+        }
+      }
+
+      // --- 通常の兄弟判定 ---
+      if(!settingsData[currentClass]) return false;
+      
+      const otherMatch = otherClass.match(/^(\d+)年(\d+)組$/);
+      if(!otherMatch) return false;
+      const otherYear = otherMatch[1];
+      const otherClassNum = otherMatch[2];
+
+      for (const student of settingsData[currentClass]) {
+        if (student.name.trim() !== '') {
+           if (String(student.sibYear) === String(otherYear) && 
+               String(student.sibClass) === String(otherClassNum) && 
+               student.sibName.trim() === otherStudentName) {
+               return true;
+           }
+           // 追加の兄弟枠もチェック
+           if (student.extraSiblings) {
+              for (const ext of student.extraSiblings) {
+                 if (String(ext.sibYear) === String(otherYear) && 
+                     String(ext.sibClass) === String(otherClassNum) && 
+                     ext.sibName.trim() === otherStudentName) {
+                     return true;
+                 }
+              }
+           }
+        }
+      }
+      return false;
+    }
+
+    // 設定が更新された時にすべてのクラスのスケジュール側も最新状態にする
+    function updateScheduleSiblings() {
+      classNames.forEach(cls => {
+        if(scheduleData[cls]){
+          for(let d = 0; d < 5; d++){
+            if(scheduleData[cls][d]){
+               scheduleData[cls][d].forEach((item, tIdx) => {
+                 if(item) item.siblings = findSiblingSchedules(cls, d, tIdx);
+               });
+            }
+          }
+        }
+      });
+      renderSchedule();
+      saveScheduleData();
+    }
+
+    function saveScheduleData() {
+      localStorage.setItem(STORAGE_KEY_SCHEDULE, JSON.stringify(scheduleData));
+    }
+
+    // 未入力の児童を算出して表示を更新する関数
+    function updateUnenteredStudentsDisplay() {
+      const currentClass = document.getElementById('schedule-class-select').value;
+      if (!currentClass || !settingsData[currentClass]) return;
+
+      const currentClassStudents = settingsData[currentClass].filter(s => s.name.trim() !== '').map(s => s.name.trim());
+
+      const scheduledStudents = [];
+      if (scheduleData[currentClass]) {
+        for(let d = 0; d < 5; d++){
+          if(scheduleData[currentClass][d]) {
+            scheduleData[currentClass][d].forEach(item => {
+              if(item && item.studentName.trim() !== '') {
+                scheduledStudents.push(item.studentName.trim());
+              }
+            });
+          }
+        }
+      }
+
+      const noVisitStudents = (noVisitData[currentClass] || []).filter(name => name.trim() !== '').map(name => name.trim());
+
+      const allEnteredStudents = [...scheduledStudents, ...noVisitStudents];
+      const unenteredStudents = currentClassStudents.filter(name => !allEnteredStudents.includes(name));
+
+      const unenteredDisplay = document.getElementById('unentered-students-display');
+      if (unenteredDisplay) {
+        if(unenteredStudents.length > 0) {
+           unenteredDisplay.textContent = unenteredStudents.join('　');
+           unenteredDisplay.style.color = '#e74c3c'; // 赤色
+        } else {
+           unenteredDisplay.textContent = "全員入力済み";
+           unenteredDisplay.style.color = "#27ae60"; // 緑色
+        }
+      }
+    }
+
+    /* -------------------------------------
+       サジェスト用 DataList
+    -------------------------------------- */
+    function setupDatalist() {
+      let datalist = document.getElementById('student-list');
+      if (!datalist) {
+        datalist = document.createElement('datalist');
+        datalist.id = 'student-list';
+        document.body.appendChild(datalist);
+      }
+      datalist.innerHTML = '';
+      
+      const currentClass = document.getElementById('schedule-class-select').value;
+      if (!currentClass || !settingsData[currentClass]) return;
+
+      settingsData[currentClass].forEach(s => {
+        if (s.name.trim() !== '') {
+          const option = document.createElement('option');
+          option.value = s.name.trim();
+          datalist.appendChild(option);
+        }
+      });
+    }
+
+    /* -------------------------------------
+       UI操作・イベント定義
+    -------------------------------------- */
+    function setupTabs() {
+      const btns = document.querySelectorAll('.tab-btn');
+      const contents = document.querySelectorAll('.tab-content');
+      const scheduleClassSelect = document.getElementById('schedule-class-select');
+
+      btns.forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          // もし「追加ボタン」等であればタブ切り替えしない
+          if(!e.target.dataset.target) return;
+
+          // アクティブ解除
+          btns.forEach(b => {
+             if(b.dataset.target) b.classList.remove('active');
+          });
+          contents.forEach(c => {
+            c.style.opacity = 0;
+            setTimeout(() => c.classList.remove('active'), 400); // fade out完了後にdisplay:none
+          });
+
+          // アクティブ付与
+          e.target.classList.add('active');
+          const targetId = e.target.dataset.target;
+          const targetContent = document.getElementById(targetId);
+          
+          // タブ切り替え時にクラス選択プルダウンの表示を制御
+          if(targetId === 'tab-schedule') {
+             scheduleClassSelect.style.display = 'inline-block';
+             updateScheduleClassSelect();
+             renderSchedule();
+          } else {
+             scheduleClassSelect.style.display = 'none';
+          }
+
+          setTimeout(() => {
+            targetContent.classList.add('active');
+            // リフローを強制してからopacityを1にしないとアニメーションしない
+            void targetContent.offsetWidth; 
+            targetContent.style.opacity = 1;
+          }, 400);
+        });
+      });
+    }
+
+    function setupResetButton() {
+      document.getElementById('reset-btn').addEventListener('click', () => {
+        if (confirm('⚠️ すべての入力データ（設定・日程）を消去して初期状態に戻しますか？\nこの操作は取り消せません。')) {
+          localStorage.removeItem(STORAGE_KEY_SETTINGS);
+          localStorage.removeItem(STORAGE_KEY_SCHEDULE);
+          localStorage.removeItem(STORAGE_KEY_NO_VISIT);
+          location.reload();
+        }
+      });
+    }
+
+    function openAuthModal() {
+      document.getElementById('auth-modal').style.display = 'flex';
+    }
+
+    function closeAuthModal() {
+      document.getElementById('auth-modal').style.display = 'none';
+    }
+
+    // 起動
+    window.onload = init;
+
+    // ==========================================
+    // 今回追加：Firebase クラウド保存・同期機能
+    // ==========================================
+    import("https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js").then(async (firebaseApp) => {
+      const { initializeApp } = firebaseApp;
+      const { getAuth, onAuthStateChanged, signInAnonymously, signInWithCustomToken, createUserWithEmailAndPassword, signInWithEmailAndPassword, linkWithCredential, EmailAuthProvider, signOut } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js");
+      const { getFirestore, doc, getDoc, setDoc, onSnapshot } = await import("https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js");
+
+      // 1. Firebase初期化設定
+    const firebaseConfig = {
+  apiKey: "AIzaSyBvARE1WjJnKwR5Bt6h5dvgnLkVp2OW-KA",
+  authDomain: "katei-houmon.firebaseapp.com",
+  projectId: "katei-houmon",
+  storageBucket: "katei-houmon.firebasestorage.app",
+  messagingSenderId: "971980229715",
+  appId: "1:971980229715:web:3409b4a72a6c25d53c8aa6"
+};
+
+      const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      const db = getFirestore(app);
+      const appId = typeof __app_id !== 'undefined' ? __app_id : 'homeVisitApp';
+      // クライアントを識別する一意のID（自端末の更新で画面が再描画されるのを防ぐため）
+      const clientId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).substring(2);
+
+      let unsubscribeSnapshot = null;
+      let saveTimeout = null;
+      let isFirstLoad = true; // 追加: 初回受信フラグ
+
+      // 万が一通信エラー等でコールバックが来なかった時のための安全装置（3秒後にローディング解除）
+      setTimeout(() => {
+        const loader = document.getElementById('global-loading');
+        if (loader) loader.style.display = 'none';
+      }, 3000);
+
+      // データの自動保存機能（最後に打ってから10秒後に裏側でセーブ、または即時同期）
+      window.autoSaveToFirebase = function(immediate = false) {
+        if (!auth.currentUser) {
+           if (immediate) alert("クラウドに接続されていません。");
+           return;
+        }
+        if (saveTimeout) clearTimeout(saveTimeout);
+        
+        const executeSave = async () => {
+          const dataToSave = {
+            settings: JSON.stringify(typeof settingsData !== 'undefined' ? settingsData : {}),
+            schedule: JSON.stringify(typeof scheduleData !== 'undefined' ? scheduleData : []),
+            noVisit: JSON.stringify(typeof noVisitData !== 'undefined' ? noVisitData : []),
+            timeConfig: JSON.stringify(timeConfig),
+            dateConfig: JSON.stringify(dateConfig),
+            updatedAt: new Date().toISOString(),
+            clientId: clientId
+          };
+          try {
+            const docRef = doc(db, 'artifacts', appId, 'users', auth.currentUser.uid, 'appData', 'main');
+            await setDoc(docRef, dataToSave);
+            if (immediate) {
+               soundSuccess.currentTime = 0; soundSuccess.play().catch(()=>{});
+               alert("クラウドと同期しました！");
+            }
+          } catch (e) {
+            console.error("自動保存失敗:", e);
+            if (immediate) alert("同期に失敗しました: " + e.message);
+          }
+        };
+
+        if (immediate) {
+          executeSave();
+        } else {
+          saveTimeout = setTimeout(executeSave, 10000); 
+        }
+      };
+
+      // ローカルストレージに保存されるタイミングをフックして、自動でクラウドへも保存する
+      const originalSetItem = localStorage.setItem;
+      localStorage.setItem = function(key, value) {
+        originalSetItem.apply(this, arguments);
+        if (key === STORAGE_KEY_SETTINGS || key === STORAGE_KEY_SCHEDULE || key === STORAGE_KEY_NO_VISIT || key === STORAGE_KEY_TIME || key === STORAGE_KEY_DATE) {
+          if (typeof window.autoSaveToFirebase === 'function') {
+            window.autoSaveToFirebase();
+          }
+        }
+      };
+
+      // 2. 認証・自動ロード処理
+      const initAuth = async () => {
+        try {
+          // FirebaseがIndexedDBからセッションを復元するのを待つ
+          await auth.authStateReady();
+          // すでにメールアドレスでログイン済みの場合は上書きしない
+          if (auth.currentUser && auth.currentUser.email) {
+            return;
+          }
+
+          if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+            try {
+              await signInWithCustomToken(auth, __initial_auth_token);
+            } catch (tokenError) {
+              console.warn("カスタムトークンエラー。匿名ログインに切り替えます。", tokenError);
+              await signInAnonymously(auth);
+            }
+          } else {
+            await signInAnonymously(auth);
+          }
+        } catch (error) {
+          console.error("認証エラー:", error);
+          if (error.code === 'auth/configuration-not-found') {
+            alert("Firebaseコンソールで「Authentication > Sign-in method > 匿名(Anonymous)」を有効にしてください。");
+          }
+        }
+      };
+      initAuth();
+      
+      onAuthStateChanged(auth, async (user) => {
+        const authBtn = document.getElementById('auth-btn');
+        if (authBtn) {
+          if (user && user.email) {
+            authBtn.textContent = 'ログアウト';
+            authBtn.onclick = window.handleLogout;
+          } else {
+            authBtn.textContent = 'ログイン';
+            authBtn.onclick = openAuthModal;
+          }
+        }
+        
+        if (unsubscribeSnapshot) {
+          unsubscribeSnapshot();
+          unsubscribeSnapshot = null;
+        }
+
+        if (user) {
+          // リアルタイム同期用のリスナーを設定
+          const docRef = doc(db, 'artifacts', appId, 'users', user.uid, 'appData', 'main');
+          
+          unsubscribeSnapshot = onSnapshot(docRef, (snap) => {
+            // 初回データ受信時にローディングを解除する
+            if (isFirstLoad) {
+              const loader = document.getElementById('global-loading');
+              if (loader) loader.style.display = 'none';
+              isFirstLoad = false;
+            }
+
+            if (snap.exists()) {
+              const data = snap.data();
+              
+              // 自分自身の更新なら再描画しない（文字入力中にフォーカスが飛ぶのを防ぐ）
+              if (data.clientId === clientId) return;
+              
+              if (data.settings) settingsData = typeof data.settings === 'string' ? JSON.parse(data.settings) : data.settings;
+              if (data.schedule) scheduleData = typeof data.schedule === 'string' ? JSON.parse(data.schedule) : data.schedule;
+              if (data.noVisit) noVisitData = typeof data.noVisit === 'string' ? JSON.parse(data.noVisit) : data.noVisit;
+              if (data.timeConfig) timeConfig = typeof data.timeConfig === 'string' ? JSON.parse(data.timeConfig) : data.timeConfig;
+              if (data.dateConfig) dateConfig = typeof data.dateConfig === 'string' ? JSON.parse(data.dateConfig) : data.dateConfig;
+              
+              generateTimeSlots();
+
+              if (settingsData) {
+                  classNames = Object.keys(settingsData).sort((a, b) => {
+                     const matchA = a.match(/(\d+)年(\d+)組/);
+                     const matchB = b.match(/(\d+)年(\d+)組/);
+                     if(matchA && matchB) {
+                        if(matchA[1] !== matchB[1]) return parseInt(matchA[1]) - parseInt(matchB[1]);
+                        return parseInt(matchA[2]) - parseInt(matchB[2]);
+                     } else if (matchA) {
+                        return -1;
+                     } else if (matchB) {
+                        return 1;
+                     } else {
+                        const weightA = a === "通級学級" ? 2 : (a.startsWith("特別支援") ? 1 : 0);
+                        const weightB = b === "通級学級" ? 2 : (b.startsWith("特別支援") ? 1 : 0);
+                        if (weightA !== weightB) return weightA - weightB;
+                        return a.localeCompare(b);
+                     }
+                  });
+              }
+              // 他端末からの更新を受け取ったら画面を再描画（即時反映）
+              // init()を呼ぶとローカルストレージの古いデータで上書きされてしまうため、
+              // クラウドから受け取ったデータをローカルストレージにサイレント保存してから個別の描画関数を呼ぶ
+              originalSetItem.call(localStorage, STORAGE_KEY_SETTINGS, JSON.stringify(settingsData));
+              originalSetItem.call(localStorage, STORAGE_KEY_SCHEDULE, JSON.stringify(scheduleData));
+              originalSetItem.call(localStorage, STORAGE_KEY_NO_VISIT, JSON.stringify(noVisitData));
+              originalSetItem.call(localStorage, STORAGE_KEY_TIME, JSON.stringify(timeConfig));
+              originalSetItem.call(localStorage, STORAGE_KEY_DATE, JSON.stringify(dateConfig));
+              
+              renderTimeDateConfig();
+              updateScheduleClassSelect();
+              setupDatalist();
+              renderSettings();
+              updateScheduleSiblings(); 
+            }
+          }, (error) => {
+            console.error("onSnapshot error:", error);
+          });
+        }
+      });
+      
+      // --- 新規登録（現在のゲストデータと連携） ---
+      window.handleSignUp = async () => {
+        const email = document.getElementById('auth-email').value;
+        const pw = document.getElementById('auth-pw').value;
+        
+        try {
+          const credential = EmailAuthProvider.credential(email, pw);
+          // 現在の匿名ユーザーにメールアドレスを紐付ける（データが消えません）
+          await linkWithCredential(auth.currentUser, credential);
+          alert("アカウントの作成と連携が完了しました！");
+          closeAuthModal();
+        } catch (e) {
+          if (e.code === 'auth/email-already-in-use') {
+            alert("このメールアドレスは既に登録されています。ログインしてください。");
+          } else {
+            alert("エラー: " + e.message);
+          }
+        }
+      };
+
+      // --- ログイン ---
+      window.handleLogin = async () => {
+        const email = document.getElementById('auth-email').value;
+        const pw = document.getElementById('auth-pw').value;
+        
+        try {
+          await signInWithEmailAndPassword(auth, email, pw);
+          alert("ログインしました。クラウドからデータを読み込みます。");
+          closeAuthModal();
+          location.reload(); // データを再読み込みするためにリロード
+        } catch (e) {
+          alert("ログイン失敗: " + e.message);
+        }
+      };
+
+      // --- ログアウト ---
+      window.handleLogout = async () => {
+        if (confirm("ログアウトしますか？")) {
+          try {
+            await signOut(auth);
+            alert("ログアウトしました。");
+            location.reload();
+          } catch (e) {
+            alert("ログアウト失敗: " + e.message);
+          }
+        }
+      };
+      
+    }).catch(err => console.error("Firebase連携エラー:", err));
+
+  </script>
+</body>
+</html>
